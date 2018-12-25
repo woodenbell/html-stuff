@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <style>
+    #poem-box {
+        text-align: center;
+        vertical-align: middle;
+      }
+    </style>
+  <script type="text/javascript">
+    const poem =
+`NENHUMA ARTE - iv
+
+Uma vida inteira passada
+dentro dos confins de um corpo
+junto ao qual vem atrelada
+a consciência, peso morto
+que acusa o golpe sofrido
+e cochicha ao pé do ouvido
+depois que o fato se deu:
+nada que te pertence é teu.
+
+Único antídoto do nada
+entre as peçonhas da vida,
+coisa por sorte encontrada
+e por desgraça perdida,
+amor lega, em sua ausência,
+um lembrete à consciência
+(se ela por acaso esqueceu):
+nada que te pertence é teu.
+
+Princípio? Tudo é contingente.
+Fim? Toda luz termina em breu.
+Sentido? Quem quiser que invente,
+quem não quiser se contente
+com este presente besta
+que, quando acabou a festa,
+a vida avara lhe deu:
+nada que te pertence é teu.
+
+  - Paulo Henriques Britto`;
+
+
+    var canvas = null;
+
+    const determineFontHeight = function(font, size) {
+      var body = document.getElementsByTagName("body")[0];
+      var dummy = document.createElement("div");
+      var dummyText = document.createTextNode("M");
+      dummy.appendChild(dummyText);
+      dummy.setAttribute("style", `font-family: ${font}; font-size: ${size}pt;
+       position: fixed; opacity: 0; display: inline-block`);
+      body.appendChild(dummy);
+      var result = dummy.offsetHeight;
+      body.removeChild(dummy);
+      return result;
+    };
+
+    const getSizeFor = function(text, lineSpace, spaceLeftRight,
+      spaceTopBottom, font, fontSize) {
+      const el = document.createElement("canvas");
+      const ctx = el.getContext("2d");
+      ctx.font = `${fontSize}pt ${font}`;
+      const height = determineFontHeight(font, fontSize);
+      const poemLines = text.split("\n");
+      const lines = poemLines.length;
+
+      var longestLine = 0;
+
+      for (let i = 0; i < lines; i++) {
+        const w = ctx.measureText(poemLines[i]).width;
+        if (w > longestLine)
+          longestLine = w;
+      }
+
+      const totalWidth = longestLine + spaceLeftRight * 2;
+      const totalHeight = ((lines - 1) * (lineSpace + height)) +
+        spaceTopBottom * 2;
+
+      return [totalWidth, totalHeight, height];
+    };
+
+    const makeCanvas = function(text, lineSpace, spaceLeftRight,
+      spaceTopBottom, font, fontSize) {
+      const poemBox = document.getElementById("poem-box");
+      const size = getSizeFor(text, lineSpace, spaceLeftRight,
+        spaceTopBottom, font, fontSize);
+      const canvas = document.createElement("canvas");
+      canvas.width = size[0];
+      canvas.height = size[1];
+      canvas.style = "border: black solid 1px;";
+      const ctx = canvas.getContext("2d");
+      poemBox.append(canvas);
+
+      return ({
+        ctx: ctx,
+        width: size[0],
+        height: size[1],
+        lineSpace: lineSpace,
+        spaceLeftRight: spaceLeftRight,
+        spaceTopBottom,
+        spaceTopBottom,
+        font: font,
+        fontSize: fontSize,
+        fontHeight: size[2],
+        poemLines: text.split("\n")
+      });
+    };
+
+    const degreeToRad = function(d) {
+      return d / 180 * Math.PI
+    };
+
+    const Triangle = function(x, y, size, rotation, speed, rotationSpeed) {
+      this.x = x;
+      this.y = y;
+      this.size = size;
+      this.rotation = rotation;
+      this.speed = speed;
+      this.rotationSpeed = rotationSpeed;
+    };
+
+    Triangle.prototype.rotate = function(r) {
+      this.rotation += r;
+
+      if (this.rotation >= 360)
+        this.rotation -= 360;
+
+      if (this.rotation <= -360)
+        this.rotation += 360;
+    };
+
+    const logicConfig = {
+      maxTriangles: 6,
+      speedRange: [[30, 50], 100],
+      rotationSpeedRange: [[2, 6], 500],
+      sizeRange: [8, 18]
+    };
+
+    const objects = {
+      triangles: []
+    };
+
+    const randInterval = function(min, max) {
+      return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+
+    const trySpawnTriangle = function(canvas, objects, logic) {
+      if (objects.triangles.length < logic.maxTriangles) {
+        var alreadyHas = false;
+
+        for (let i = 0; i < objects.triangles.length; i++) {
+          const t = objects.triangles[i];
+
+          if (2 * (-logic.sizeRange[1]) <= t.x
+          && t.x <= (canvas.width / randInterval(2, 10))) {
+            alreadyHas = true;
+            break;
+          }
+        }
+
+        if (alreadyHas) {
+          return;
+        } else {
+          const size = randInterval(logic.sizeRange[0], logic.sizeRange[1]);
+          const y = randInterval(2 * size, canvas.height - 2 * size);
+          const rotation = randInterval(0, 359);
+          const speed = randInterval(logic.speedRange[0][0],
+               logic.speedRange[0][1]) /logic.speedRange[1];
+          const rotationSpeed = randInterval(logic.rotationSpeedRange[0][0],
+            logic.rotationSpeedRange[0][1]) / logic.rotationSpeedRange[1];
+          objects.triangles.push(new Triangle(2 * (-size), y, size, rotation,
+            speed, rotationSpeed));
+          //console.log("Spawned");
+        }
+      }
+    };
+
+    const updateTriangles = function(canvas, objects, logic) {
+
+      const toRemove = [];
+
+      for (let i = 0; i < objects.triangles.length; i++) {
+        const t = objects.triangles[i];
+        if (t.x - 2*t.size >= canvas.width)
+         toRemove.push(i);
+      }
+
+      for(let i = 0; i < toRemove.length; i++)
+        objects.triangles.splice(toRemove[i], 1);
+
+      for (let i = 0; i < objects.triangles.length; i++) {
+        const t = objects.triangles[i];
+        t.rotate(t.rotationSpeed);
+        t.x += t.speed;
+      };
+
+    };
+
+    const tick = function(canvas, objects, logicConfig) {
+      trySpawnTriangle(canvas, objects, logicConfig);
+      updateTriangles(canvas, objects, logicConfig);
+    };
+
+    const clear = function(c) {
+      c.ctx.clearRect(0, 0, c.width, c.height);
+    };
+
+    const drawText = function(c) {
+
+      for (let i = 0; i < c.poemLines.length; i++) {
+        c.ctx.font = `${c.fontSize}pt ${c.font}`;
+        c.ctx.fillText(c.poemLines[i], c.spaceLeftRight,
+          c.spaceTopBottom + ((c.fontHeight + c.lineSpace) * i));
+      }
+    };
+
+    const drawTriangles = function(c) {
+
+      const ctx = c.ctx;
+
+      for (let i = 0; i < objects.triangles.length; i++) {
+        const t = objects.triangles[i];
+        ctx.save();
+        ctx.globalCompositeOperation = "xor";
+        ctx.translate(t.x, t.y);
+        ctx.rotate(t.rotation);
+        ctx.beginPath();
+        ctx.moveTo(-t.size, t.size);
+        ctx.lineTo(-t.size, 2 * (-t.size));
+        ctx.lineTo(2 * t.size, t.size);
+        ctx.lineTo(-t.size, t.size);
+        ctx.fill();
+        ctx.restore();
+      };
+    };
+
+    const render = function(canvas) {
+      clear(canvas);
+
+      drawText(canvas);
+      drawTriangles(canvas);
+      requestAnimFrame(() => render(canvas));
+    }
+
+    const tps = 100;
+    const fps = 30;
+
+    window.requestAnimFrame = (function() {
+      return (
+        window.requestAnimationFrame ||
+        window.webkitRequestAnimationFrame ||
+        window.mozRequestAnimationFrame ||
+        window.oRequestAnimationFrame ||
+        window.msRequestAnimationFrame ||
+        function(f) {
+          window.setTimeout(f, 1000 / 60);
+        }
+      );
+    }());
+
+    window.addEventListener("load", evt => {
+      canvas = makeCanvas(poem, 2, 100, 60, "Arial", 8);
+      setInterval(() => tick(canvas, objects, logicConfig), 1000 / tps);
+      requestAnimFrame(() => render(canvas, objects));
+    });
+  </script>
+</head>
+
+<body>
+  <div id="poem-box">
+
+  </div>
+</body>
+
+</html>

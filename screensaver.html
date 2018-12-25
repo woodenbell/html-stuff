@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>DVD Screensaver simulator</title>
+    <meta charset="utf-8" />
+    <style type="text/css">
+        #canvas-container {}
+
+        #canvas-container canvas {
+            border: black solid 1px;
+        }
+    </style>
+    <script type="text/javascript" src="node_modules/babel-standalone/babel.min.js"></script>
+    <script type="text/javascript" src="node_modules\mathjs\dist\math.min.js"></script>
+    <script type="text/babel">
+        class Wall {
+            constructor(width, height) {
+                this.width = width;
+                this.height = height;
+            }
+            }
+
+            class BouncingObject  {
+
+            constructor(width, height, speed, startingDirection, startingX, startingY) {
+                this.width = width;
+                this.height = height;
+                this.speed = speed;
+                this.direction = startingDirection;
+                this.x = startingX;
+                this.y = startingY;
+            }
+
+                move(x, y , limits) {
+                this.x += x;
+                this.y += y;
+
+                if(this.x <= limits[0])
+                    this.x = limits[0] + 1;
+                if(this.y <= limits[1])
+                    this.y = limits[1] + 1;
+                if(this.x + this.width >= limits[2])
+                    this.x = limits[2] - this.width - 1;
+                if(this.y + this.height >= limits[3])
+                    this.y = limits[3] - this.height - 1;
+            }
+
+            getMovementAmount() {
+                return [math.floor(math.cos(math.unit(this.direction, 'deg')) * 10 * this.speed),
+                 math.floor(math.sin(math.unit(this.direction, 'deg')) * 10 * this.speed)];
+            }
+            }
+
+            
+
+            class ScreensaverSimulator {
+                
+            constructor(spaceWidth, spaceHeight, objWidth, objHeight, objSpeed) {
+                this.wall = new Wall(spaceWidth, spaceHeight);
+                this.bouncingObject = new BouncingObject(objWidth, objHeight, objSpeed, 37,
+                 (spaceWidth/2 - objWidth/2), (spaceHeight/2 - objHeight/2));
+                this.canvas = makeCanvas(spaceWidth, spaceHeight);
+                this.cnv = this.canvas.getContext('2d');
+                this.running = false;
+            }
+
+            tick() {
+                // console.log(this.bouncingObject.x, this.bouncingObject.y);
+                this.checkColision();
+                const toMove = this.bouncingObject.getMovementAmount();
+                const proportional = [this.bouncingObject.speed*toMove[0]/100, this.bouncingObject.speed*toMove[1]/100];
+                this.bouncingObject.move(proportional[0], proportional[1],
+                 [0, 0, this.wall.width, this.wall.height]);
+            }
+
+            checkColision() {
+
+                const resetDeg = a => (a >= 0 ? (a >= 360 ? resetDeg(a - 360) : a) : resetDeg(360 + a));
+                const opposite = a => resetDeg(a + 180);
+
+                // bottom colision
+                    if(this.inWallSpace(this.bouncingObject.x,
+                     this.bouncingObject.y + this.bouncingObject.height + 1)) {
+                        this.bouncingObject.direction = opposite(540 - this.bouncingObject.direction);
+                        console.log("COLLIDED BOTTOM");
+                        return true;
+                    }
+
+                // left colision
+                    if(this.inWallSpace(this.bouncingObject.x - 1, this.bouncingObject.y)) {
+                        this.bouncingObject.direction = 
+                         opposite(720 - this.bouncingObject.direction);
+                        console.log("COLLIDED LEFT");
+                        return true;
+                    }
+
+                // top colision
+
+                    if(this.inWallSpace(this.bouncingObject.x,
+                     this.bouncingObject.y - 1)) {
+                        this.bouncingObject.direction = opposite(180 - this.bouncingObject.direction);
+                        console.log("COLLIDED TOP");
+                        return true;
+                    }
+
+                // right colision
+                     if(this.inWallSpace(this.bouncingObject.x + this.bouncingObject.width + 1,
+                      this.bouncingObject.y)) {
+                        this.bouncingObject.direction = opposite(360 - this.bouncingObject.direction);
+                        console.log("COLLIDED RIGHT");
+                        return true;
+                    }
+                return false;
+
+            }
+
+
+            inWallSpace(x, y) {
+                return(
+                    ((x === 0 || x === this.wall.width) && (y >= 0 && y <= this.wall.height))
+                    || ((y === 0 || y === this.wall.height) && (x >= 0 && x <= this.wall.width))
+                );
+            }
+
+            start() {
+                if(this.running)
+                    return;
+
+                document.getElementById('canvas-container').appendChild(this.canvas);
+                this.animationFrame = window.requestAnimationFrame(this.paint.bind(this));
+                this.tickInterval = window.setInterval(this.tick.bind(this), 1000/100);
+
+                this.running = true;
+            }
+
+            stop() {
+                if(!this.running)
+                    return;
+
+                window.cancelAnimationFrame(this.animationFrame);
+                window.clearInterval(this.tickInterval);
+
+                this.running = false;
+            }
+
+            destroy() {
+                this.stop();
+                document.getElementById('canvas-container').removeChild(this.canvas);
+            }
+
+            paint() {
+                this.clear();
+                this.draw();
+                window.requestAnimationFrame(this.paint.bind(this));
+            }
+
+            clear() {
+                this.cnv.clearRect(0, 0, this.wall.width, this.wall.height);
+            }
+
+            draw() {
+                this.cnv.fillStyle = '#000000';
+                this.cnv.fillRect(this.bouncingObject.x, this.bouncingObject.y,
+                this.bouncingObject.width, this.bouncingObject.height);
+                this.cnv.font = '18px Arial';
+                this.cnv.fillText(`${math.floor(this.bouncingObject.x)}`, 50, 50);
+                this.cnv.fillText(`${math.floor(this.bouncingObject.y)}`, 50, 80);
+            }
+            }
+
+            const makeCanvas = function(width, height) {
+                const canvas = document.createElement('canvas');
+                canvas.setAttribute('id', 'cnv');
+                canvas.setAttribute('width', width);
+                canvas.setAttribute('height', height);
+                return canvas;
+            };
+
+            window.addEventListener('load', evt => {
+                window.simulator = new ScreensaverSimulator(400, 250, 40, 25, 4);
+                window.simulator.start();
+            });
+        </script>
+</head>
+
+<body>
+    <div id="canvas-container">
+    </div>
+</body>
+
+</html>
